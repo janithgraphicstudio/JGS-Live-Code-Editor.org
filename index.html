@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JGS Live Code Editor V1.0</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/material.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/show-hint.min.css">
+   <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo"><i class="fa-solid fa-code"></i>  JGS Live Code Editor V1.0</div>
+            <div class="toolbar">
+                <button class="btn" onclick="newFile()"><i class="fas fa-file"></i> New</button>
+                <button class="btn" onclick="openFile()"><i class="fa-solid fa-folder-open"></i> Open</button>
+                <button class="btn" onclick="openFolder()"><i class="fa-solid fa-folder-tree"></i> Open Folder</button>
+                <button class="btn" onclick="saveFile()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                <button class="btn" onclick="combineAndExport()"><i class="fa-brands fa-nfc-symbol"></i> Combine</button>
+                 <button class="btn btn-secondary" onclick="toggleAiAssistant(true)">
+        <i class="fas fa-robot"></i> AI Assistant <span style="font-size:0.8em;opacity:0.7;">(Ctrl+J)</span>
+    </button>
+                <button class="btn btn-secondary" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> Theme</button>
+                <button class="btn btn-secondary" onclick="showSettings()"><i class="fa-solid fa-sliders"></i> Settings</button>
+                <button class="btn btn-secondary" onclick="showAbout()"><i class="fa-solid fa-user"></i> About</button>
+                <button class="btn btn-secondary" onclick="showHelp()"><i class="fa-solid fa-circle-info"></i> Help</button>
+                <div class="status-indicator"><i class="fa-solid fa-play"></i> Live</div>
+            </div>
+        </header>
+
+          <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <i class="fas fa-sitemap"></i> Explorer
+                    <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="toggleSidebar()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="file-explorer" id="fileExplorer">
+                    <ul class="file-tree" id="fileTree">
+                        <li>
+                            <div class="file-item active" data-file-type="html" onclick="selectTab('html')">
+                                <i class="fab fa-html5"></i> index.html
+                                <i class="fas fa-check checkmark"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="file-item" data-file-type="css" onclick="selectTab('css')">
+                                <i class="fab fa-css3-alt"></i> styles.css
+                                <i class="fas fa-check checkmark"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="file-item" data-file-type="js" onclick="selectTab('js')">
+                                <i class="fab fa-js"></i> script.js
+                                <i class="fas fa-check checkmark"></i>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Editor Area -->
+            <div class="editor-area">
+                <!-- Editor Panel -->
+                <div class="editor-panel">
+                    <div class="editor-tabs">
+                        <div class="tab active" data-tab="html" onclick="selectTab('html')">
+                            <i class="fab fa-html5"></i> index.html
+                        </div>
+                        <div class="tab" data-tab="css" onclick="selectTab('css')">
+                            <i class="fab fa-css3-alt"></i> styles.css
+                        </div>
+                        <div class="tab" data-tab="js" onclick="selectTab('js')">
+                            <i class="fab fa-js"></i> script.js
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                         <textarea id="htmlEditor" style="display:none;"><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <h1>Hello World</h1>
+  <p>Welcome to the VS Code-inspired editor!</p>
+  <button id="demo-button">Click Me</button>
+</body>
+</html></textarea>
+                        <textarea id="cssEditor" style="display:none;">body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+h1 {
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #2980b9;
+}</textarea>
+                        <textarea id="jsEditor" style="display:none;">// JavaScript code
+document.addEventListener('DOMContentLoaded', function() {
+  const button = document.getElementById('demo-button');
+  
+  if (button) {
+    button.addEventListener('click', function() {
+      alert('Button clicked!');
+    });
+  }
+  
+  console.log('Script loaded successfully!');
+});</textarea>
+                    </div>
+                </div>
+                <!-- Preview Panel -->
+                <div class="preview-panel" id="previewPanel">
+                    <div class="preview-header">
+                        <div class="preview-title">
+                            <i class="fas fa-eye"></i> Live Preview
+                        </div>
+                        <div class="preview-actions">
+                            <button class="btn" onclick="refreshPreview()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button class="btn" onclick="togglePreviewFullscreen()">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                            <button class="btn" onclick="openPreviewInNewTab()">
+                                <i class="fas fa-external-link-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <iframe class="preview-frame" id="previewFrame" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+                </div>
+            </div>
+        </div>
+          <!-- Status Bar -->
+        <div class="status-bar">
+            <div>
+                <span id="lineCount"> Lines: 0</span> |
+                <span id="charCount"> Characters: 0</span> |
+                <span id="currentLang"> Language: HTML</span> >>>  © JGS Live Code Editor V1.0 
+            </div>
+            <div>
+                <span id="autoSaveStatus"> Auto-saved</span>
+            </div>
+        </div>
+        <!-- Footer -->
+        <footer class="footer">
+            Powered by JGS Lanka Co. 2025| +94702001859
+        </footer>
+    </div>
+    <!-- Modals -->
+    <div class="modal" id="aboutModal">
+        <div class="modal-content">
+            <div class="modal-header"><i class="fa-solid fa-laptop-code"></i>  About JGS Live Code Editor</div>
+            <div class="modal-body">
+                <ul class="shortcuts-list">
+                <li><h3>JGS Live Code Editor</h3></li>
+                <li><p><strong>Version:</strong> 1.0 (Beeta)</p></li>
+                <p><strong>PRODUCT BY:</strong> JGS LANKA Co.</p>
+                <p><strong>DESIGN BY:</strong> Janith Athma Herath</p>
+                <li><p>A powerful, real-time code editor with live preview functionality. Perfect for web development with HTML, CSS, and JavaScript.</p></li>
+                </ul>
+            </div>
+            <a href="https://sites.google.com/view/janithgraphicstudio/home" class="btn" target="_blank"><i class="fa-solid fa-handshake-angle"></i> ABOUT US</a>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('aboutModal')">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header"><i class="fa-solid fa-gear"></i>  Settings</div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">Theme</label>
+                    <select class="settings-control" id="themeSelect" onchange="changeTheme(this.value)">
+                        <option value="dark">Dark Theme</option>
+                        <option value="light">Light Theme</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">Editor Font Size</label>
+                    <select class="settings-control" id="fontSizeSelect" onchange="changeFontSize(this.value)">
+                        <option value="12">12px</option>
+                        <option value="14" selected>14px</option>
+                        <option value="16">16px</option>
+                        <option value="18">18px</option>
+                        <option value="20">20px</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">Editor Theme</label>
+                    <select class="settings-control" id="editorThemeSelect" onchange="changeEditorTheme(this.value)">
+                        <option value="default">Default</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="material">Material</option>
+                        <option value="monokai">Monokai</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">AI Assistant Settings</label>
+                    <div style="margin-top: 10px;">
+                        <input type="checkbox" id="aiAutoCompletionToggle" checked>
+                        <label for="aiAutoCompletionToggle">Enable AI auto-completion</label>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <input type="checkbox" id="aiErrorFixingToggle" checked>
+                        <label for="aiErrorFixingToggle">Enable AI error detection & fixing</label>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <input type="checkbox" id="aiTypingAnimationToggle" checked>
+                        <label for="aiTypingAnimationToggle">Enable typing animations</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+     <div class="modal" id="errorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-exclamation-triangle"></i> Error Detected
+            </div>
+            <div class="modal-body">
+                <div class="error-location">
+                    <div class="settings-label">Location</div>
+                    <div id="errorLocation">Unknown location</div>
+                </div>
+                <div class="error-message">
+                    <div class="settings-label">Error</div>
+                    <div id="errorMessage">An unknown error occurred.</div>
+                </div>
+                <div class="error-details">
+                    <div class="settings-label">Details</div>
+                    <pre id="errorDetails" style="background: var(--tertiary-bg); padding: 1rem; border-radius: 0.4rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); margin-top: 0.5rem;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="navigateToError()">Go to Error</button>
+                <button class="btn" onclick="aiFixError()">Let AI Fix It</button>
+                <button class="btn" onclick="closeModal('errorModal')">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header"><i class="fa-solid fa-keyboard"></i>  Keyboard Shortcuts & Help</div>
+            <div class="modal-body">
+                <h4>Keyboard Shortcuts:</h4>
+                <ul class="shortcuts-list">
+                    <li>
+                        <span>Save File</span>
+                        <span class="shortcut-key">Ctrl + S</span>
+                    </li>
+                    <li>
+                        <span>Open File</span>
+                        <span class="shortcut-key">Ctrl + O</span>
+                    </li>
+                    <li>
+                        <span>New File</span>
+                        <span class="shortcut-key">Ctrl + N</span>
+                    </li>
+                    <li>
+                        <span>Combine & Export</span>
+                        <span class="shortcut-key">Ctrl + Shift + C</span>
+                    </li>
+                    <li>
+                        <span>Switch Theme</span>
+                        <span class="shortcut-key">Ctrl + L</span>
+                    </li>
+                    <li>
+                        <span>Toggle Sidebar</span>
+                        <span class="shortcut-key">Ctrl + B</span>
+                    </li>
+                    <li>
+                        <span>Open AI Assistant</span>
+                        <span class="shortcut-key">Ctrl + J</span>
+                    </li>
+                    <li>
+                        <span>Preview Fullscreen</span>
+                        <span class="shortcut-key">Ctrl + P</span>
+                    </li>
+                    <li>
+                        <span>Theme</span>
+                        <span class="shortcut-key">Ctrl + K</span>
+                    </li>
+                </ul>
+                <br>
+                <h4>Usage Instructions:</h4>
+                <p>1. Write your HTML, CSS, and JavaScript in the respective tabs</p>
+                <p>2. See live preview on the right panel</p>
+                <p>3. Use the toolbar to save, open, or combine files</p>
+                <p>4. Customize appearance in Settings</p>
+                <p>5. Use the robot button or Ctrl+J for AI Assistant</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('helpModal')">Close</button>
+            </div>
+        </div>
+    </div>
+     
+    <!-- AI Assistant -->
+    <div class="ai-toggle" id="aiToggle" onclick="toggleAiAssistant()">
+        <i class="fas fa-robot"></i>
+    </div>
+    
+    <div class="ai-assistant" id="aiAssistant">
+       
+        <div class="ai-header">
+    <div class="ai-title">
+        <i class="fas fa-robot"></i> AI Assistant
+    </div>
+    <div>
+        <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="toggleAiAssistantFullscreen()">
+            <i class="fas fa-expand"></i>
+        </button>
+        <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="toggleAiAssistant()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+        <div class="ai-body" id="aiMessages">
+            <div class="ai-message assistant">
+                <span class="typing-animation-container">
+                    <span class="typing-animation">Hello! I'm your coding assistant powered by Gemini AI. I can help you write, explain, optimize, and fix code.</span>
+                </span>
+            </div>
+        </div>
+        <div class="ai-footer">
+            <div class="ai-actions">
+                <button class="ai-action-btn" onclick="aiAction('explain')"><i class="fas fa-book"></i> Explain Code</button>
+                <button class="ai-action-btn" onclick="aiAction('fix')"><i class="fas fa-bug"></i> Fix Bugs</button>
+                <button class="ai-action-btn" onclick="aiAction('optimize')"><i class="fas fa-bolt"></i> Optimize</button>
+                <button class="ai-action-btn" onclick="aiAction('generate')"><i class="fas fa-code"></i> Generate</button>
+                <button class="ai-action-btn" onclick="aiAction('complete')"><i class="fas fa-magic"></i> Complete</button>
+            </div>
+            <div class="ai-input-container">
+                 <button class="ai-send-btn" onclick="sendAiMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+                <textarea class="ai-input" id="aiInput" placeholder="Ask a coding question..." rows="1" oninput="autoResizeTextarea(this)" autocomplete="on"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Context Menu -->
+    <div class="ai-context-menu" id="aiContextMenu" style="display: none;">
+        <div class="ai-context-item" onclick="aiContextAction('explain')">
+            <i class="fas fa-book"></i> Explain Code
+        </div>
+        <div class="ai-context-item" onclick="aiContextAction('fix')">
+            <i class="fas fa-bug"></i> Fix This Code
+        </div>
+        <div class="ai-context-item" onclick="aiContextAction('optimize')">
+            <i class="fas fa-bolt"></i> Optimize Code
+        </div>
+        <div class="ai-context-divider"></div>
+        <div class="ai-context-item" onclick="aiContextAction('run')">
+            <i class="fas fa-play"></i> Run Selected Code
+        </div>
+    </div>
+    
+    <!-- AI Code Autocomplete Popup -->
+    <div class="ai-autocomplete" id="aiAutocomplete" style="display: none;">
+        <div class="ai-autocomplete-header">
+            AI Suggestions
+            <i class="fas fa-times" onclick="hideAiAutocomplete()" style="cursor: pointer;"></i>
+        </div>
+        <div class="ai-autocomplete-body" id="aiAutocompleteSuggestions">
+            <!-- Suggestions will be inserted here -->
+        </div>
+        <div class="ai-autocomplete-footer">
+            <span>Tab or Enter to accept</span>
+            <span>Esc to dismiss</span>
+        </div>
+    </div>
+    
+    <!-- AI Error Suggestion -->
+    <div class="ai-error-suggestion" id="aiErrorSuggestion" style="display: none;">
+        <div class="ai-error-header">
+            Error Detected
+            <i class="fas fa-times" onclick="hideAiErrorSuggestion()" style="cursor: pointer;"></i>
+        </div>
+        <div class="ai-error-body">
+            <div class="ai-error-message" id="aiErrorMessage">
+                Syntax error: Unexpected token
+            </div>
+            <div class="ai-error-fix" id="aiErrorFix">
+                // Suggested fix will appear here
+            </div>
+            <div class="ai-error-actions">
+                <button class="btn" onclick="applyAiErrorFix()">Apply Fix</button>
+                <button class="btn" onclick="hideAiErrorSuggestion()">Ignore</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Code Highlight Tooltip -->
+    <div class="codehint" id="codeHint" style="display: none;"></div>
+
+     <!-- Drag & Drop Overlay -->
+    <div class="drag-overlay" id="dragOverlay">
+        <div class="drag-message">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <div>Drop files here to add them to your project</div>
+        </div>
+    </div>
+
+    <!-- Success Notification -->
+    <div class="notification success" id="successNotification">
+        <div style="font-size: 1.5rem; color: var(--success);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="notification-content">
+            <div class="notification-title">Operation Successful</div>
+            <div class="notification-message" id="successMessage">Your action was completed successfully.</div>
+        </div>
+        <div class="notification-close" onclick="hideNotification('successNotification')">
+            <i class="fas fa-times"></i>
+        </div>
+    </div>
+
+    <!-- Error Notification -->
+    <div class="notification error" id="errorNotification">
+        <div style="font-size: 1.5rem; color: var(--error);">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="notification-content">
+            <div class="notification-title">Error Occurred</div>
+            <div class="notification-message" id="errorMessage">Something went wrong.</div>
+        </div>
+        <div class="notification-close" onclick="hideNotification('errorNotification')">
+            <i class="fas fa-times"></i>
+        </div>
+    </div>
+    
+    <!-- File Input -->
+    <input type="file" id="fileInput" class="file-input" accept=".html,.css,.js,.txt" onchange="handleFileOpen(event)">
+    <input type="file" id="folderInput" class="file-input" webkitdirectory directory multiple onchange="handleFolderUpload(event)">
+    <input type="color" id="cssColorPickerInput" style="position: absolute; display: none; z-index: 10000; width: 40px; height: 25px; padding:0; border:none;">
+    
+    <!-- CodeMirror and other scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/csslint/1.0.5/csslint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/lint/css-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/html-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/css-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/xml-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/hint/javascript-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/runmode/runmode.min.js"></script>
+    
+ <script src="script.js"></script>
+</body>
+</html>
