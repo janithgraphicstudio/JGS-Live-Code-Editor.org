@@ -16,16 +16,16 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <div class="logo"><i class="fa-solid fa-code"></i>  JGS Live Code Editor V1.0</div>
+            <div class="logo"><i class="fa-solid fa-code"></i>  JGS Live Code Editor V1.0 <b>PRO</b></div>
             <div class="toolbar">
-                <button class="btn" onclick="newFile()"><i class="fas fa-file"></i> New</button>
                 <button class="btn" onclick="openFile()"><i class="fa-solid fa-folder-open"></i> Open</button>
                 <button class="btn" onclick="openFolder()"><i class="fa-solid fa-folder-tree"></i> Open Folder</button>
                 <button class="btn" onclick="saveFile()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                <button class="btn" onclick="showMappingModal()"><i class="fas fa-chart-pie"></i> Mapping</button>
+                 <button class="btn" onclick="downloadProjectZip()"><i class="fa-solid fa-download"></i> Download ZIP</button>
                 <button class="btn" onclick="combineAndExport()"><i class="fa-brands fa-nfc-symbol"></i> Combine</button>
-                 <button class="btn btn-secondary" onclick="toggleAiAssistant(true)">
-        <i class="fas fa-robot"></i> AI Assistant <span style="font-size:0.8em;opacity:0.7;">(Ctrl+J)</span>
-    </button>
+                 <button class="btn btn-secondary" onclick="toggleAiAssistant(true)"><i class="fas fa-robot"></i> AI Assistant <span style="font-size:0.8em;opacity:0.7;">(Ctrl+J)</span> </button>
+                  <button class="btn" id="imageToAppBtn"><i class="fas fa-camera-retro"></i> Image to App</button>
                 <button class="btn btn-secondary" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> Theme</button>
                 <button class="btn btn-secondary" onclick="showSettings()"><i class="fa-solid fa-sliders"></i> Settings</button>
                 <button class="btn btn-secondary" onclick="showAbout()"><i class="fa-solid fa-user"></i> About</button>
@@ -43,27 +43,21 @@
                     <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="toggleSidebar()">
                         <i class="fas fa-times"></i>
                     </button>
-                </div>
-                <div class="file-explorer" id="fileExplorer">
-                    <ul class="file-tree" id="fileTree">
-                        <li>
-                            <div class="file-item active" data-file-type="html" onclick="selectTab('html')">
-                                <i class="fab fa-html5"></i> index.html
-                                <i class="fas fa-check checkmark"></i>
-                            </div>
-                        </li>
-                        <li>
-                            <div class="file-item" data-file-type="css" onclick="selectTab('css')">
-                                <i class="fab fa-css3-alt"></i> styles.css
-                                <i class="fas fa-check checkmark"></i>
-                            </div>
-                        </li>
-                        <li>
-                            <div class="file-item" data-file-type="js" onclick="selectTab('js')">
-                                <i class="fab fa-js"></i> script.js
-                                <i class="fas fa-check checkmark"></i>
-                            </div>
-                        </li>
+                    </div>
+                    <div class="file-explorer-toolbar">
+        
+        <button class="file-toolbar-btn" title="New Folder" onclick="newFolder()">
+            <i class="fas fa-folder"></i>
+        </button>
+        <button class="file-toolbar-btn" title="Rename Selected" onclick="renameSelectedFile()">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button class="file-toolbar-btn" title="Delete Selected" onclick="deleteSelectedFile()">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+              <div class="file-explorer" id="fileExplorer">
+    <ul class="file-tree" id="fileTree">
                     </ul>
                 </div>
             </div>
@@ -72,15 +66,15 @@
                 <!-- Editor Panel -->
                 <div class="editor-panel">
                     <div class="editor-tabs">
-                        <div class="tab active" data-tab="html" onclick="selectTab('html')">
-                            <i class="fab fa-html5"></i> index.html
-                        </div>
-                        <div class="tab" data-tab="css" onclick="selectTab('css')">
-                            <i class="fab fa-css3-alt"></i> styles.css
-                        </div>
-                        <div class="tab" data-tab="js" onclick="selectTab('js')">
-                            <i class="fab fa-js"></i> script.js
-                        </div>
+                       <div class="tab active" data-tab="html" onclick="selectTab('html', 'index.html')">
+    <i class="fab fa-html5"></i> <span class="file-name-label">index.html</span>
+</div>
+<div class="tab" data-tab="css" onclick="selectTab('css', 'styles.css')">
+    <i class="fab fa-css3-alt"></i> <span class="file-name-label">styles.css</span>
+</div>
+<div class="tab" data-tab="js" onclick="selectTab('js', 'script.js')">
+    <i class="fab fa-js"></i> <span class="file-name-label">script.js</span>
+</div>
                     </div>
                     <div class="editor-container">
                          <textarea id="htmlEditor" style="display:none;"><!DOCTYPE html>
@@ -145,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="fas fa-eye"></i> Live Preview
                         </div>
                         <div class="preview-actions">
+                            <button class="btn btn-primary" onclick="openPreviewInNewTab()">
+    <i class="fas fa-external-link-alt"></i> Publish Preview
+</button>
                             <button class="btn" onclick="refreshPreview()">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
@@ -189,6 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <li><p>A powerful, real-time code editor with live preview functionality. Perfect for web development with HTML, CSS, and JavaScript.</p></li>
                 </ul>
             </div>
+            <button class="support-popup-btn" id="supportPopupBtn" title="Customer Support">
+  <i class="fas fa-headset"></i>
+</button>
             <a href="https://sites.google.com/view/janithgraphicstudio/home" class="btn" target="_blank"><i class="fa-solid fa-handshake-angle"></i> ABOUT US</a>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('aboutModal')">Close</button>
@@ -265,11 +265,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     <pre id="errorDetails" style="background: var(--tertiary-bg); padding: 1rem; border-radius: 0.4rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); margin-top: 0.5rem;"></pre>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="navigateToError()">Go to Error</button>
-                <button class="btn" onclick="aiFixError()">Let AI Fix It</button>
-                <button class="btn" onclick="closeModal('errorModal')">Close</button>
-            </div>
+           <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="navigateToError()">
+        <i class="fas fa-location-arrow"></i> Go to Error
+    </button>
+    <button class="btn btn-primary" onclick="applyAiErrorFix()">
+        <i class="fas fa-magic"></i> Let AI Fix It
+    </button>
+    <button class="btn" onclick="closeModal('errorModal')">
+        <i class="fas fa-times"></i> Close
+    </button>
+</div>
         </div>
     </div>
     <div class="modal" id="helpModal">
@@ -351,8 +357,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
         <div class="ai-body" id="aiMessages">
             <div class="ai-message assistant">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-robot" viewBox="0 0 16 16">
+  <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135"/>
+  <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5"/>
+</svg>
                 <span class="typing-animation-container">
-                    <span class="typing-animation">Hello! I'm your coding assistant powered by Gemini AI. I can help you write, explain, optimize, and fix code.</span>
+                    <span class="typing-animation"><b>Hi!👋 I'm your coding assistant, Powered by SINHA AI</b></span>
+                        <br>How can I help you today?</span>
+                        <br>I can help you write, explain, optimize, and fix code.</span>
                 </span>
             </div>
         </div>
@@ -450,6 +462,36 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
+    <!-- Customer Support Popup Card -->
+<div class="support-popup-card" id="supportPopupCard">
+  <div class="support-popup-header">
+    <i class="fas fa-headset"></i>
+    Customer Support
+    <span class="support-popup-close" id="supportPopupClose">&times;</span>
+  </div>
+  <div class="support-popup-body" id="supportPopupBody">
+    <div id="supportPopupTyping" style="min-height:32px; color:var(--accent); font-weight:500;">
+      <span id="supportTypingText"></span>
+      <span id="supportTypingCursor" style="display:inline-block;width:2px;height:1em;background:var(--accent);vertical-align:middle;animation:blink 1s infinite;"></span>
+    </div>
+    <form class="support-popup-form" id="supportPopupForm" autocomplete="off">
+      <input type="text" id="supportName" placeholder="Your Name" required />
+      <textarea id="supportMsg" placeholder="Your Message" required></textarea>
+      <div class="support-popup-agree">
+        <input type="checkbox" id="supportAgree" />
+        <label for="supportAgree" style="user-select:none;">I'm Agree</label>
+      </div>
+      <button type="submit" class="support-popup-send" id="supportSendBtn" disabled>
+        <i class="fas fa-paper-plane"></i> Send
+      </button>
+    </form>
+    <div class="support-popup-success" id="supportPopupSuccess" style="display:none;">
+      <i class="fas fa-check-circle" style="font-size:2.2rem;"></i>
+      <div>Thank You Use App</div>
+    </div>
+  </div>
+</div>
+
     <!-- Error Notification -->
     <div class="notification error" id="errorNotification">
         <div style="font-size: 1.5rem; color: var(--error);">
@@ -464,10 +506,72 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
     
+
+    <div class="modal" id="fileActionModal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header" id="fileActionModalTitle"></div>
+    <div class="modal-body" id="fileActionModalBody"></div>
+    <div class="modal-footer" id="fileActionModalFooter"></div>
+  </div>
+</div>
+    
+    <!-- Code Mapping Modal -->
+    <div class="modal" id="mappingModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <i class="fas fa-chart-pie"></i> Code Mapping & Statistics
+                <button class="btn-close" style="background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; padding: 0.5rem 1rem;" onclick="closeModal('mappingModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>Code Distribution (Percentages)</h4>
+                <div id="codePercentageChart" class="percentage-chart-container">
+                    <div class="percentage-item">
+                        <span>HTML: <span id="htmlPercentage">0</span>%</span>
+                        <div class="bar-background"><div id="htmlBar" class="bar-foreground" style="width: 0%; background-color: #e34c26;"></div></div>
+                    </div>
+                    <div class="percentage-item">
+                        <span>CSS: <span id="cssPercentage">0</span>%</span>
+                        <div class="bar-background"><div id="cssBar" class="bar-foreground" style="width: 0%; background-color: #264de4;"></div></div>
+                    </div>
+                    <div class="percentage-item">
+                        <span>JavaScript: <span id="jsPercentage">0</span>%</span>
+                        <div class="bar-background"><div id="jsBar" class="bar-foreground" style="width: 0%; background-color: #f0db4f;"></div></div>
+                    </div>
+                </div>
+                <hr style="margin: 20px 0;">
+                <h4>Detailed Statistics</h4>
+                <div class="stats-grid">
+                    <div class="stats-section">
+                        <h5><i class="fab fa-html5" style="color: #e34c26;"></i> HTML</h5>
+                        <p>Characters: <span id="htmlCharCount">0</span></p>
+                        <p>Lines: <span id="htmlLineCount">0</span></p>
+                        <p>Tags (approx.): <span id="htmlTagCount">0</span></p>
+                    </div>
+                    <div class="stats-section">
+                        <h5><i class="fab fa-css3-alt" style="color: #264de4;"></i> CSS</h5>
+                        <p>Characters: <span id="cssCharCount">0</span></p>
+                        <p>Lines: <span id="cssLineCount">0</span></p>
+                        <p>Rules (approx.): <span id="cssRuleCount">0</span></p>
+                    </div>
+                    <div class="stats-section">
+                        <h5><i class="fab fa-js" style="color: #f0db4f;"></i> JavaScript</h5>
+                        <p>Characters: <span id="jsCharCount">0</span></p>
+                        <p>Lines: <span id="jsLineCount">0</span></p>
+                        <p>Functions (approx.): <span id="jsFuncCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('mappingModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- File Input -->
     <input type="file" id="fileInput" class="file-input" accept=".html,.css,.js,.txt" onchange="handleFileOpen(event)">
     <input type="file" id="folderInput" class="file-input" webkitdirectory directory multiple onchange="handleFolderUpload(event)">
     <input type="color" id="cssColorPickerInput" style="position: absolute; display: none; z-index: 10000; width: 40px; height: 25px; padding:0; border:none;">
+    <input type="file" id="imageToAppInput" accept="image/*" style="display: none;">
     
     <!-- CodeMirror and other scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
@@ -486,6 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/selection/active-line.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/addon/runmode/runmode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
  <script src="script.js"></script>
 </body>

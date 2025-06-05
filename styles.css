@@ -1,19 +1,19 @@
   :root {
-             --primary-bg: #1e1e1e;
-            --secondary-bg: #252526;
-            --tertiary-bg: #2d2d2d;
+             --primary-bg: #131212;
+            --secondary-bg: #1b1b1b;
+            --tertiary-bg: #242323;
             --panel-bg: #1e1e1e;
             --text-primary: #cccccc;
             --text-secondary: #969696;
-            --accent: #007acc;
-            --accent-hover: #0e95de;
+            --accent: #0278ff;
+            --accent-hover: #00a2ff;
             --border: #3c3c3c;
             --success: #4caf50;
             --warning: #ff9800;
-            --error: #f44336;
+            --error: #ff1100;
             --editor-bg: #1e1e1e;
             --preview-bg: #ffffff;
-            --glass-bg: rgba(30, 30, 30, 0.055);
+            --glass-bg: rgba(0, 0, 0, 0.644);
             --glass-border: rgba(60, 60, 60, 0.5);
             --glass-shadow: rgba(0, 0, 0, 0.25);
         }
@@ -24,12 +24,12 @@
             --panel-bg: #f8f8f8;
             --text-primary: #333333;
             --text-secondary: #666666;
-            --accent: #0078d4;
-            --accent-hover: #106ebe;
+            --accent: #0228ff;
+            --accent-hover: #0368ff;
             --border: #d4d4d4;
             --success: #4caf50;
             --warning: #ff9800;
-            --error: #f44336;
+            --error: #ff1100;
             --editor-bg: #ffffff;
             --preview-bg: #ffffff;
             --glass-bg: rgba(255, 255, 255, 0.8);
@@ -486,6 +486,27 @@
             gap: 0.75rem;
             border-top: 1px solid var(--border);
         }
+.file-explorer-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 8px 4px 8px;
+  background: var(--sidebar-bg, #23272e);
+  border-bottom: 1px solid #222;
+}
+.file-toolbar-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.1em;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.file-toolbar-btn:hover {
+  background: #333;
+  color: #fff;
+}
         
         .settings-group { 
             margin-bottom: 1.5rem; 
@@ -593,6 +614,95 @@
             from { width: 0; }
             to { width: 100%; }
         }
+       
+        /* Add these styles to your styles.css file */
+
+.percentage-chart-container {
+    margin-bottom: 20px;
+}
+
+.percentage-item {
+    margin-bottom: 10px;
+}
+
+.percentage-item span {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+}
+
+.bar-background {
+    background-color: var(--border-color, #eee);
+    border-radius: 4px;
+    height: 20px;
+    width: 100%;
+    overflow: hidden; /* Ensures inner div respects border-radius */
+}
+
+.bar-foreground {
+    height: 100%;
+    /* text-align: right; */ /* Optional: if you want to put text inside the bar */
+    /* padding-right: 5px; */
+    /* color: white; */
+    /* font-weight: bold; */
+    /* line-height: 20px; */
+    border-radius: 4px; /* Match parent for smooth corners */
+    transition: width 0.5s ease-in-out;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stats-section {
+    padding: 15px;
+    background-color: var(--secondary-bg, #f9f9f9);
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.stats-section h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-primary); /* Use primary text color, icon color will differentiate */
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+.stats-section h5 i {
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+
+.stats-section p {
+    margin: 8px 0;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.stats-section p span {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Ensure modal close button is styled if not already globally done */
+.modal-header .btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    line-height: 1;
+}
+.modal-header .btn-close:hover {
+    color: var(--text-primary);
+}
+
+
+
         
         .typing-animation {
             display: inline-block;
@@ -728,7 +838,7 @@
     pointer-events: none;
     opacity: 0.6;
     animation: ai-spread 0.5s infinite cubic-bezier(0.4,0,0.2,1), ai-gradient-move 8s linear infinite;
-    background: radial-gradient(circle at 60% 40%, #ff0080 0%, #7928ca 40%, #0078ff 70%, #00ffb8 100%);
+    background: radial-gradient(circle at 60% 40%, #09033d 0%, #0d011a 40%, #021020 70%, #010f0b 100%);
     background-size: 200% 200%;
     filter: blur(32px);
 }
@@ -846,6 +956,8 @@
             font-size: 0.875rem;
             line-height: 1.5;
             position: relative;
+            overflow-wrap: break-word; /* Ensure long words break and wrap */
+            word-wrap: break-word; /* Older property for compatibility */
             animation: message-appear 0.3s ease;
         }
         
@@ -1305,6 +1417,7 @@
             display: flex;
             justify-content: flex-end;
             gap: 0.5rem;
+            flex-wrap: wrap; /* Allow buttons to wrap if needed */
         }
         /* Advanced AI code block styling */
 .ai-advanced-code-block {
@@ -1481,3 +1594,135 @@
                 justify-content: space-between;
             }
         }
+/* ...existing code... */
+
+/* Customer Support Popup */
+.support-popup-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  z-index: 1200;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  font-size: 1.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.support-popup-btn:hover {
+  background: var(--accent-hover);
+}
+
+.support-popup-card {
+  position: fixed;
+  bottom: 160px;
+  right: 20px;
+  width: 350px;
+  max-width: 95vw;
+  background: rgba(30,30,30,0.7);
+  backdrop-filter: blur(16px);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+  z-index: 1201;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 0.3s;
+}
+.support-popup-card.show {
+  display: flex;
+}
+.support-popup-header {
+  padding: 1.2rem 1rem 0.5rem 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.support-popup-close {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  transition: color 0.2s;
+}
+.support-popup-close:hover {
+  color: var(--error);
+}
+.support-popup-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.support-popup-form input,
+.support-popup-form textarea {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--tertiary-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 0.7rem;
+  resize: none;
+}
+.support-popup-form textarea {
+  min-height: 60px;
+  max-height: 120px;
+}
+.support-popup-agree {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.7rem;
+}
+.support-popup-send {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.7;
+}
+.support-popup-send.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+.support-popup-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.support-popup-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem;
+  color: var(--success);
+  font-size: 1.2rem;
+  gap: 0.5rem;
+  animation: fadeIn 0.4s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px);}
+  to { opacity: 1; transform: translateY(0);}
+}

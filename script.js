@@ -1,6 +1,243 @@
    // API Setup
       const API_KEY = "AIzaSyBjv-eGcDOS1D2-Ly556tbQx_oFAiBuz2k";
       const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+      // Refined insertCodeWithTypingAnimation function
+function insertCodeWithTypingAnimation(editor, code, speed = 2, onChunkTypedCallback = null, chunkSize = 50) {
+    return new Promise((resolve) => {
+        // If editor has selection, it will be replaced. Otherwise, types at cursor.
+        let i = 0;
+        let charsTypedInChunk = 0;
+
+        function typeNextChar() {
+            if (i < code.length) {
+                const charToInsert = code.charAt(i);
+                const currentCursorPos = editor.getCursor(); // Get current cursor before insertion
+
+                if (charToInsert === '\n') {
+                    editor.replaceRange('\n', currentCursorPos);
+                } else {
+                    editor.replaceRange(charToInsert, currentCursorPos);
+                }
+                // CodeMirror automatically moves the cursor after replaceRange
+
+                i++;
+                charsTypedInChunk++;
+
+                if (onChunkTypedCallback && (charsTypedInChunk >= chunkSize || charToInsert === '\n' || i === code.length)) {
+                    if (typeof onChunkTypedCallback === 'function') {
+                        onChunkTypedCallback();
+                    }
+                    charsTypedInChunk = 0;
+                }
+                setTimeout(typeNextChar, speed);
+            } else {
+                if (onChunkTypedCallback && typeof onChunkTypedCallback === 'function') { // Final update
+                    onChunkTypedCallback();
+                }
+                resolve(); // Resolve the promise when typing is done
+            }
+        }
+        editor.focus(); // Focus the editor before starting to type
+        typeNextChar();
+    });
+}
+
+
+// --- Image to App Feature ---
+
+function initializeImageToApp() {
+    const imageToAppBtn = document.getElementById('imageToAppBtn');
+    const imageToAppInput = document.getElementById('imageToAppInput');
+
+    if (imageToAppBtn) {
+        imageToAppBtn.addEventListener('click', () => {
+            if (imageToAppInput) {
+                imageToAppInput.click();
+            }
+        });
+    }
+
+    if (imageToAppInput) {
+        imageToAppInput.addEventListener('change', handleImageToAppUpload);
+    }
+}
+
+function handleImageToAppUpload(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+        showNotification('error', 'Invalid File', 'Please upload an image file.');
+        if (event.target) event.target.value = null; // Reset input
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = function() {
+        const base64ImageData = reader.result.split(',')[1]; // Get base64 part
+        sendImageToAiForAppGeneration(base64ImageData, file.type);
+    }
+    reader.onerror = function() {
+        showNotification('error', 'File Error', 'Could not read the image file.');
+        if (event.target) event.target.value = null;
+    }
+    reader.readAsDataURL(file);
+    if (event.target) event.target.value = null; // Reset input for same file selection
+}
+
+async function sendImageToAiForAppGeneration(base64ImageData, mimeType) {
+    showNotification('info', 'AI Processing...', 'AI is analyzing the image and generating code. This may take some time. Please wait.', 60000); // Extended timeout for notification
+
+     const prompt = `You are an expert web developer. Analyze the provided UI image and generate the complete HTML, CSS, and JavaScript code to replicate it as a web application.
+The HTML should be well-structured, semantic, and include ARIA attributes for accessibility where appropriate (e.g., roles for navigation, landmarks, button labels).
+The CSS should accurately reflect the styling (colors, fonts, layout, spacing, dimensions, and component appearance) visible in the image.
+Employ modern CSS practices:
+  - Use CSS Flexbox or Grid for layout creation.
+  - Use CSS variables (custom properties) for managing colors, fonts, or spacing if a consistent theme is apparent.
+  - Ensure responsive design principles are considered if the UI implies different states or adaptability.
+The JavaScript should implement any visible interactive elements (e.g., buttons, menus, forms, carousels, tabs) with functional, albeit basic, logic.
+  - Use modern JavaScript (ES6+) syntax.
+  - Attach event listeners appropriately.
+  - Perform necessary DOM manipulations.
+  - If complex behavior is implied but not fully clear, create a functional placeholder that logs to the console or shows an alert, clearly indicating what it's supposed to do.
+If specific images (like logos, icons, background images) are used in the UI, use descriptive placeholder image URLs from services like 'https://via.placeholder.com/{width}x{height}.png?text={description}' (e.g., https://via.placeholder.com/150x50.png?text=Logo) or 'https://picsum.photos/{width}/{height}' and ensure the 'alt' attributes are descriptive.
+If text content is clearly visible, include it. For generic text, use "Lorem ipsum..." or descriptive placeholders like "Sample Title".
+Provide the output ONLY as a single valid JSON object with three keys: "html", "css", and "javascript". Each key's value should be a string containing the respective code. Do not include any other text, explanations, or markdown formatting (like \`\`\`json) outside of this JSON object.
+Ensure the generated code is clean, well-commented where necessary for complex parts, and adheres to common best practices.
+
+Example JSON structure:
+{
+  "html": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>...</head>\\n<body>...</body>\\n</html>",
+  "css": "body { \\n  font-family: sans-serif; \\n}\\n...",
+  "javascript": "document.addEventListener(\\"DOMContentLoaded\\", function() {\\n  // Your JS code here\\n});"
+}
+`;
+
+    try {
+        const response = await fetch(API_URL, { // Ensure API_URL is correctly defined globally
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        {
+                            inline_data: {
+                                mime_type: mimeType,
+                                data: base64ImageData
+                            }
+                        }
+                    ]
+                }],
+                 "generationConfig": { // It's good to specify some config
+                   "temperature": 0.4, // Lower temperature for more deterministic code generation
+                   "maxOutputTokens": 8192, // Maximize output tokens for potentially large code
+                   "responseMimeType": "application/json", // Request JSON output directly
+                 }
+            })
+        });
+
+        // Hide the "AI Processing..." notification once response is received or error occurs
+        hideNotification('infoNotification');
+
+
+        if (!response.ok) {
+            const errorText = await response.text(); // Get raw error text
+            let errorDetails = `Status: ${response.status}.`;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorDetails += ` ${errorData?.error?.message || 'Unknown API error'}`;
+            } catch (e) {
+                errorDetails += ` Non-JSON response: ${errorText.substring(0, 200)}`;
+            }
+            console.error('AI API Error Response:', errorText);
+            showNotification('error', 'AI Error', `Failed to generate code. ${errorDetails}`);
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
+            let aiResponseText = data.candidates[0].content.parts[0].text;
+            
+            try {
+                // The model should directly return JSON if responseMimeType is set.
+                // If not, manual cleaning might be needed (though less likely with responseMimeType).
+                // aiResponseText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+
+                const codes = JSON.parse(aiResponseText); // This should now directly parse if model respects responseMimeType
+                
+                if (codes && typeof codes.html === 'string' && typeof codes.css === 'string' && typeof codes.javascript === 'string') {
+                    showNotification('success', 'Code Generated', 'AI has generated the code. Typing into editors...');
+                    await typeCodeIntoEditorsAndPreview(codes.html, codes.css, codes.javascript);
+                } else {
+                    console.error("AI response is not in the expected JSON format:", codes);
+                    showNotification('error', 'AI Error', 'AI response format is incorrect. Expected JSON with html, css, javascript string keys.');
+                }
+            } catch (e) {
+                console.error('Error parsing AI JSON response:', e, "Raw response text:", aiResponseText);
+                showNotification('error', 'AI Error', 'Failed to parse AI response. The response was not valid JSON.');
+            }
+        } else if (data.promptFeedback && data.promptFeedback.blockReason) {
+             console.error("AI request blocked:", data.promptFeedback);
+             showNotification('error', 'AI Error', `Request blocked: ${data.promptFeedback.blockReason}. ${data.promptFeedback.blockReasonMessage || ''}`);
+        }
+         else {
+            console.error("Unexpected AI response structure:", data);
+            showNotification('error', 'AI Error', 'Could not extract code from AI response. The response structure was unexpected.');
+        }
+
+    } catch (error) {
+        hideNotification('infoNotification');
+        console.error('AI API request failed:', error);
+        showNotification('error', 'AI Error', `Failed to connect to AI service for code generation. ${error.message}`);
+    }
+}
+
+async function typeCodeIntoEditorsAndPreview(htmlCode, cssCode, jsCode) {
+    const userConfirmation = confirm("The AI has generated code based on the image. This will replace the current content in the editors. Do you want to proceed?");
+    if (!userConfirmation) {
+        showNotification('info', 'Cancelled', 'Image to App operation cancelled by user.');
+        return;
+    }
+
+     const typingSpeed = 15; // අකුරු type වීමේ වේගය (delay in ms - වැඩි අගයකින් සෙමින් type වේ)
+    const chunkSizeForPreview = 30; // Update preview more frequently for smaller chunks
+
+    try {
+        showNotification('info', 'Typing HTML...', 'HTML code is being typed into the editor.', 30000);
+        editors.html.setValue(''); // Clear HTML editor
+        await insertCodeWithTypingAnimation(editors.html, htmlCode, typingSpeed, () => {
+            safeUpdatePreview(); // Update preview after each chunk
+        }, chunkSizeForPreview);
+        hideNotification('infoNotification'); // Hide after HTML is done or next step starts
+
+        showNotification('info', 'Typing CSS...', 'CSS code is being typed into the editor.', 30000);
+        editors.css.setValue(''); // Clear CSS editor
+        await insertCodeWithTypingAnimation(editors.css, cssCode, typingSpeed, () => {
+            safeUpdatePreview();
+        }, chunkSizeForPreview);
+        hideNotification('infoNotification');
+
+        showNotification('info', 'Typing JavaScript...', 'JavaScript code is being typed into the editor.', 30000);
+        editors.js.setValue(''); // Clear JS editor
+        await insertCodeWithTypingAnimation(editors.js, jsCode, typingSpeed, () => {
+            safeUpdatePreview();
+        }, chunkSizeForPreview);
+        hideNotification('infoNotification');
+
+        showNotification('success', 'Done!', 'Code generation and typing complete! Final preview updated.', 5000);
+        safeUpdatePreview(); // Final preview update
+    } catch (e) {
+        console.error("Error during typing or preview update:", e);
+        showNotification('error', 'Operation Error', 'An error occurred during the code typing process.');
+    }
+}
+
+
       
       // Modal controls
       function toggleTheme() {
@@ -41,6 +278,83 @@
                   showErrorModal(lastErrorMessage, lastErrorDetails);
               }
           });
+
+          (function() {
+  const btn = document.getElementById('supportPopupBtn');
+  const card = document.getElementById('supportPopupCard');
+  const close = document.getElementById('supportPopupClose');
+  const typingText = document.getElementById('supportTypingText');
+  const typingCursor = document.getElementById('supportTypingCursor');
+  const form = document.getElementById('supportPopupForm');
+  const nameInput = document.getElementById('supportName');
+  const msgInput = document.getElementById('supportMsg');
+  const agree = document.getElementById('supportAgree');
+  const sendBtn = document.getElementById('supportSendBtn');
+  const successDiv = document.getElementById('supportPopupSuccess');
+
+  // Typing animation
+  const typingMsg = "ඔබේ ගැටලු සහ අදහස් යොජනා අපිට කියන්න ⁣";
+  let typingIdx = 0, typingInterval;
+  function startTyping() {
+    typingText.textContent = "";
+    typingIdx = 0;
+    typingCursor.style.display = "inline-block";
+    clearInterval(typingInterval);
+    typingInterval = setInterval(() => {
+      if (typingIdx <= typingMsg.length) {
+        typingText.textContent = typingMsg.slice(0, typingIdx);
+        typingIdx++;
+      } else {
+        clearInterval(typingInterval);
+        typingCursor.style.display = "none";
+      }
+    }, 55);
+  }
+
+  // Show/hide popup
+  btn.onclick = () => {
+    card.classList.add('show');
+    startTyping();
+    form.style.display = '';
+    successDiv.style.display = 'none';
+    nameInput.value = '';
+    msgInput.value = '';
+    agree.checked = false;
+    sendBtn.disabled = true;
+    sendBtn.classList.remove('enabled');
+  };
+  close.onclick = () => card.classList.remove('show');
+
+  // Enable send button only if agree checked and fields filled
+  function updateSendBtn() {
+    if (nameInput.value.trim() && msgInput.value.trim() && agree.checked) {
+      sendBtn.disabled = false;
+      sendBtn.classList.add('enabled');
+    } else {
+      sendBtn.disabled = true;
+      sendBtn.classList.remove('enabled');
+    }
+  }
+  nameInput.oninput = msgInput.oninput = agree.onchange = updateSendBtn;
+
+  // Form submit
+  form.onsubmit = function(e) {
+    e.preventDefault();
+    if (sendBtn.disabled) return;
+    const name = nameInput.value.trim();
+    const msg = msgInput.value.trim();
+    // WhatsApp API
+    const waMsg = encodeURIComponent(`Name: ${name}\nMessage: ${msg}`);
+    const waUrl = `https://wa.me/94702001859?text=${waMsg}`;
+    window.open(waUrl, '_blank');
+    // Show success
+    form.style.display = 'none';
+    successDiv.style.display = 'flex';
+    setTimeout(() => {
+      card.classList.remove('show');
+    }, 2500);
+  };
+})();
           
           // ---- Main application code ----
           // Global state variables
@@ -116,6 +430,249 @@
           // Use a WeakMap to store markers per editor instance
           const editorColorMarkers = new WeakMap();
 
+          // --- File Data Structure Example ---
+let files = [
+  { name: "index.html", type: "html", content: "" },
+  { name: "styles.css", type: "css", content: "" },
+  { name: "script.js", type: "js", content: "" }
+];
+let currentFileIndex = 0;
+
+// --- New File ---
+function newFile() {
+  showFileActionModal({
+    title: "Create New File",
+    body: "",
+    showInput: true,
+    inputPlaceholder: "Enter file name (e.g. newfile.html)",
+    onConfirm: function(fileName) {
+      if (!fileName) return;
+      // Check for duplicate file name
+      if (files.some(f => f.name === fileName)) {
+        alert("A file with that name already exists!");
+        return;
+      }
+       const ext = fileName.split('.').pop().toLowerCase();
+      let type = "txt";
+      if (ext === "html") type = "html";
+      else if (ext === "css") type = "css";
+      else if (ext === "js") type = "js";
+      files.push({ name: fileName, type, content: "" });
+      currentFileIndex = files.length - 1;
+      renderFileExplorer();
+      selectTabByFileName(fileName); // <-- මෙය අනිවාර්යයි!
+    }
+  });
+}
+function newFolder() {
+  showFileActionModal({
+    title: "Create New Folder",
+    body: "<div style='color:#888;font-size:0.95em;'>Folder support is not implemented yet.</div>",
+    confirmText: "OK",
+    onConfirm: function() {}
+  });
+}
+
+function renameSelectedFile() {
+  if (files.length === 0) return;
+  const idx = currentFileIndex;
+  const file = files[idx];
+  showFileActionModal({
+    title: "Rename File",
+    showInput: true,
+    inputValue: file.name,
+    inputPlaceholder: "Enter new file name",
+    onConfirm: function(newName) {
+      if (newName && newName !== file.name) {
+        file.name = newName;
+        renderFileExplorer();
+      }
+    }
+  });
+}
+
+function deleteSelectedFile() {
+  if (files.length === 0) return;
+  const idx = currentFileIndex;
+  const file = files[idx];
+  showFileActionModal({
+    title: "Delete File",
+    body: `<div>Are you sure you want to delete <b>${file.name}</b>?</div>`,
+    confirmText: "Delete",
+    confirmDanger: true,
+    onConfirm: function() {
+      files.splice(idx, 1);
+      if (currentFileIndex >= files.length) currentFileIndex = files.length - 1;
+      renderFileExplorer();
+      if (files.length > 0) selectTabByFileName(files[currentFileIndex].name);
+    }
+  });
+}
+
+// --- Select Tab by File Name ---
+function selectTabByFileName(fileName) {
+  const idx = files.findIndex(f => f.name === fileName);
+  if (idx !== -1) {
+    currentFileIndex = idx;
+    selectTab(files[idx].type, fileName);
+  }
+}
+function selectTab(type, fileName) {
+  // Hide all editors
+  document.querySelectorAll('.editor-panel .CodeMirror').forEach(cm => {
+    cm.style.display = 'none';
+  });
+
+  // Remove active class from all tabs and file items
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.file-item').forEach(item => item.classList.remove('active'));
+
+  // Fallback if unsupported type
+  let editorType = type;
+  if (!editors[type]) editorType = 'html';
+
+  // Show the selected editor
+  if (editors[editorType]) {
+    editors[editorType].getWrapperElement().style.display = 'block';
+    editors[editorType].refresh();
+  }
+  
+  // Highlight the selected tab (if exists)
+  const tabEl = document.querySelector(`.tab[data-tab="${editorType}"]`);
+  if (tabEl) tabEl.classList.add('active');
+
+  // Highlight the selected file in explorer
+  const fileItems = document.querySelectorAll('.file-item');
+  fileItems.forEach(item => {
+    if (item.querySelector('.file-name')?.textContent === fileName) {
+      item.classList.add('active');
+    }
+  });
+
+  currentTab = editorType;
+  updateStatusBar && updateStatusBar();
+}
+
+
+// --- Render File Explorer ---
+function renderFileExplorer() {
+  const fileTree = document.getElementById('fileTree');
+  if (!fileTree) return;
+  fileTree.innerHTML = '';
+  files.forEach((file, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="file-item${idx === currentFileIndex ? ' active' : ''}" 
+           data-file-type="${file.type}" 
+           data-file-index="${idx}" 
+           onclick="selectTabByFileName('${file.name}')">
+        <span class="file-icon">
+          <i class="fab fa-${file.type === 'html' ? 'html5' : file.type === 'css' ? 'css3-alt' : file.type === 'js' ? 'js' : 'file'}"></i>
+        </span>
+        <span class="file-name">${file.name}</span>
+      </div>
+    `;
+    fileTree.appendChild(li);
+  });
+}
+
+let contextFileIndex = null;
+function showFileContextMenu(e, idx) {
+  e.preventDefault();
+  contextFileIndex = idx;
+  const menu = document.getElementById('fileContextMenu');
+  menu.style.display = 'block';
+  menu.style.left = e.pageX + 'px';
+  menu.style.top = e.pageY + 'px';
+  document.addEventListener('click', hideFileContextMenu);
+}
+function hideFileContextMenu() {
+  document.getElementById('fileContextMenu').style.display = 'none';
+  document.removeEventListener('click', hideFileContextMenu);
+}
+
+function renameFileDirect(idx) {
+  const file = files[idx];
+  showFileActionModal({
+    title: "Rename File",
+    showInput: true,
+    inputValue: file.name,
+    inputPlaceholder: "Enter new file name",
+    onConfirm: function(newName) {
+      if (newName && newName !== file.name) {
+        file.name = newName;
+        renderFileExplorer();
+      }
+    }
+  });
+}
+
+function deleteFileDirect(idx) {
+  const file = files[idx];
+  showFileActionModal({
+    title: "Delete File",
+    body: `<div>Are you sure you want to delete <b>${file.name}</b>?</div>`,
+    confirmText: "Delete",
+    confirmDanger: true,
+    onConfirm: function() {
+      files.splice(idx, 1);
+      if (currentFileIndex >= files.length) currentFileIndex = files.length - 1;
+      renderFileExplorer();
+      if (files.length > 0) selectTabByFileName(files[currentFileIndex].name);
+    }
+  });
+}
+
+// --- Download Project as ZIP ---
+function downloadProjectZip() {
+  // Requires JSZip library
+  const zip = new JSZip();
+  files.forEach(file => {
+    zip.file(file.name, file.content);
+  });
+  zip.generateAsync({ type: "blob" }).then(function(content) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = "project.zip";
+    a.click();
+  });
+}
+
+function showFileActionModal({title, body, onConfirm, confirmText = "OK", showInput = false, inputValue = "", inputPlaceholder = "", confirmDanger = false}) {
+  const modal = document.getElementById('fileActionModal');
+  document.getElementById('fileActionModalTitle').innerText = title;
+  document.getElementById('fileActionModalBody').innerHTML = showInput
+    ? `<input id="fileActionModalInput" class="modal-input" type="text" value="${inputValue}" placeholder="${inputPlaceholder}" style="width:100%;padding:8px;font-size:1em;">`
+    : body || "";
+  document.getElementById('fileActionModalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="hideFileActionModal()">Cancel</button>
+    <button class="btn${confirmDanger ? ' btn-danger' : ''}" id="fileActionModalConfirmBtn">${confirmText}</button>
+  `;
+  modal.style.display = "block";
+  setTimeout(() => {
+    const btn = document.getElementById('fileActionModalConfirmBtn');
+    if (btn) btn.onclick = function() {
+      let val = showInput ? document.getElementById('fileActionModalInput').value : undefined;
+      hideFileActionModal();
+      onConfirm && onConfirm(val);
+    };
+    if (showInput) {
+      document.getElementById('fileActionModalInput').focus();
+      document.getElementById('fileActionModalInput').select();
+    }
+  }, 50);
+}
+function hideFileActionModal() {
+  document.getElementById('fileActionModal').style.display = "none";
+} 
+
+
+// --- On Load ---
+document.addEventListener('DOMContentLoaded', function() {
+  renderFileExplorer();
+  // ...other init code...
+});
+
           // Debounce function
           function debounce(func, delay) {
               let timeout;
@@ -175,22 +732,7 @@
                   ...commonOptions,
                   mode: 'javascript'
               });
-              function initializeEditors() {
-    // ...existing code...
-    editors.html = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
-        ...commonOptions,
-        mode: 'htmlmixed'
-    });
-
-    editors.css = CodeMirror.fromTextArea(document.getElementById('cssEditor'), {
-        ...commonOptions,
-        mode: 'css'
-    });
-
-    editors.js = CodeMirror.fromTextArea(document.getElementById('jsEditor'), {
-        ...commonOptions,
-        mode: 'javascript'
-    });
+              {
 
     // ======= මෙහිදී ඔබේ code block එක add කරන්න =======
     editors.html.on('inputRead', function(cm, change) {
@@ -208,9 +750,29 @@
             cm.showHint();
         }
     });
-    // ================================================
 
-    // ...rest of your initializeEditors code...
+     // ==== මෙහිදී files array එකේ content initialize කරන්න ====
+    files[0].content = editors.html.getValue();
+    files[1].content = editors.css.getValue();
+    files[2].content = editors.js.getValue();  
+
+    // ================================================
+    editors.html.on('change', function(cm) {
+      if (files[currentFileIndex] && files[currentFileIndex].type === 'html') {
+        files[currentFileIndex].content = cm.getValue();
+      }
+    });
+    editors.css.on('change', function(cm) {
+      if (files[currentFileIndex] && files[currentFileIndex].type === 'css') {
+        files[currentFileIndex].content = cm.getValue();
+      }
+    });
+    editors.js.on('change', function(cm) {
+      if (files[currentFileIndex] && files[currentFileIndex].type === 'js') {
+        files[currentFileIndex].content = cm.getValue();
+      }
+    });
+
 }
 
               // Add selection event for AI code selection feature
@@ -244,11 +806,7 @@
               }, 300));
 
               // Initialize file explorer
-              const fileExplorer = document.getElementById('fileExplorer');
-              fileExplorer.innerHTML = '';
-              createFileExplorerItem('index.html', 'html', true);
-              createFileExplorerItem('styles.css', 'css', true);
-              createFileExplorerItem('script.js', 'js', true);
+              renderFileExplorer();
 
               selectTab('html');
               safeUpdatePreview();
@@ -701,40 +1259,7 @@ function extractTagContent(html, tag) {
     }
     return result.trim();
 }
-          // Select active tab
-          function selectTab(tabName) {
-              // Hide all editors
-              document.querySelectorAll('.editor-panel .CodeMirror').forEach(cm => {
-                  cm.style.display = 'none';
-              });
-              
-              // Remove active class from all tabs
-              document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-              document.querySelectorAll('.file-item').forEach(item => item.classList.remove('active'));
-              
-              // Show selected editor
-              editors[tabName].getWrapperElement().style.display = 'block';  
-              
-              // Add active class to selected tab
-              document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-              
-              // Add active class to corresponding file item in explorer
-              const fileItems = document.querySelectorAll('.file-item');
-              fileItems.forEach(item => {
-                  if (item.dataset.fileType === tabName) {
-                      item.classList.add('active');
-                  }
-              });
-
-              currentTab = tabName;
-              updateStatusBar();
-              editors[tabName].refresh();
-              
-              // Clear any existing AI code highlights when switching tabs
-              clearAiCodeHighlights();
-          }
-
-          // Handle code selection for AI
+// Handle code selection for AI
           function handleCodeSelection(cm) {
               if (!cm) return;
               
@@ -806,54 +1331,75 @@ function extractTagContent(html, tag) {
           }
           
           // Navigate to error
-          function navigateToError() {
-              let cm = null;
-              let line = null;
 
-              if (lastErrorType === "css" && editors.css && lastErrorDetails) {
-                  const lineMatch = lastErrorDetails.match(/Line: (\d+)/i);
-                  if (lineMatch && lineMatch[1]) {
-                      line = parseInt(lineMatch[1], 10) - 1;
-                      selectTab('css');
-                      cm = editors.css;
-                  }
-              } else if (lastErrorType === "js" && editors.js && lastErrorDetails) {
-                  const lineMatch = lastErrorDetails.match(/Row: (\d+)/i);
-                  if (lineMatch && lineMatch[1]) {
-                      line = parseInt(lineMatch[1], 10) - 1;
-                      selectTab('js');
-                      cm = editors.js;
-                  }
-              } else if (lastErrorType === "html" && editors.html && lastErrorDetails) {
-                  const lineMatch = lastErrorDetails.match(/Row (\d+)/i);
-                  if (lineMatch && lineMatch[1]) {
-                      line = parseInt(lineMatch[1], 10) - 1;
-                      selectTab('html');
-                      cm = editors.html;
-                  }
-              }
+function navigateToError() {
+    let cm = null;
+    let line = null;
+    let fileName = null;
 
-              if (cm !== null && line !== null && line >= 0 && line < cm.lineCount()) {
-                  cm.focus();
-                  cm.setCursor({ line, ch: 0 });
+    // Detect error line and file
+    if (lastErrorType === "css" && lastErrorDetails) {
+        const lineMatch = lastErrorDetails.match(/Line: (\d+)/i);
+        if (lineMatch && lineMatch[1]) line = parseInt(lineMatch[1], 10) - 1;
+        fileName = 'styles.css';
+        selectTab('css', fileName);
+        cm = editors.css;
+    } else if (lastErrorType === "js" && lastErrorDetails) {
+        const lineMatch = lastErrorDetails.match(/Row: (\d+)/i);
+        if (lineMatch && lineMatch[1]) line = parseInt(lineMatch[1], 10) - 1;
+        fileName = 'script.js';
+        selectTab('js', fileName);
+        cm = editors.js;
+    } else if (lastErrorType === "html" && lastErrorDetails) {
+        const lineMatch = lastErrorDetails.match(/Row (\d+)/i);
+        if (lineMatch && lineMatch[1]) line = parseInt(lineMatch[1], 10) - 1;
+        fileName = 'index.html';
+        selectTab('html', fileName);
+        cm = editors.html;
+    }
 
-                  // Remove previous error highlight if any
-                  if (window._lastErrorLineHandle) {
-                      cm.removeLineClass(window._lastErrorLineHandle, 'background', 'error-line');
-                  }
-                  
-                  // Highlight the error line
-                  window._lastErrorLineHandle = cm.addLineClass(line, 'background', 'error-line');
+    // Fallback: try to find error line in error message if not found
+    if (line === null && lastErrorMessage) {
+        const lineMatch = lastErrorMessage.match(/(?:Line|Row)[^\d]*(\d+)/i);
+        if (lineMatch && lineMatch[1]) line = parseInt(lineMatch[1], 10) - 1;
+    }
 
-                  // Remove highlight after 2 seconds
-                  setTimeout(() => {
-                      if (window._lastErrorLineHandle) {
-                          cm.removeLineClass(window._lastErrorLineHandle, 'background', 'error-line');
-                          window._lastErrorLineHandle = null;
-                      }
-                  }, 2000);
-              }
-          }
+    // --- Debugging ---
+    console.log({
+        lastErrorType,
+        lastErrorDetails,
+        lastErrorMessage,
+        line,
+        cm,
+        lineCount: cm ? cm.lineCount() : null,
+        fileName
+    });
+    // -----------------
+
+    // Highlight line if valid
+    if (cm && line !== null && line >= 0 && line < cm.lineCount()) {
+        cm.focus();
+        cm.setCursor({ line, ch: 0 });
+
+        // Remove previous error highlight if any
+        if (typeof window._lastErrorLineHandle === 'number') {
+            cm.removeLineClass(window._lastErrorLineHandle, 'background', 'error-line');
+            window._lastErrorLineHandle = null;
+        }
+
+        window._lastErrorLineHandle = line;
+        cm.addLineClass(line, 'background', 'error-line');
+
+        setTimeout(() => {
+            if (typeof window._lastErrorLineHandle === 'number') {
+                cm.removeLineClass(window._lastErrorLineHandle, 'background', 'error-line');
+                window._lastErrorLineHandle = null;
+            }
+        }, 2000);
+    } else {
+        showNotification('error', 'Go to Error', 'Cannot find error line to highlight!');
+    }
+}
 
           // Construct HTML for preview or new tab
           function constructPreviewHtml(htmlContent, cssContent, jsContent) {
@@ -923,51 +1469,224 @@ function extractTagContent(html, tag) {
           // This function will be called from the preview iframe on error
           window.handlePreviewError = function(message, source, lineno, colno, errorObject) {
     // If JS Editor is empty, ignore JS errors from preview
-    if (editors.js && editors.js.getValue().trim() === '') {
-        return true; // Suppress error popup
-    }
-    jsErrorInPreviewOccurred = true;
-    lastErrorType = "js";
-    lastErrorMessage = message || "JavaScript Error";
-              
-              let errorDetails = `Row: ${lineno}, Column: ${colno}`;
-              let sourceName = 'Inline Script';
-              
-              if (source && source !== window.location.href && source !== 'about:blank') {
-                  try {
-                      const url = new URL(source);
-                      sourceName = url.pathname.substring(url.pathname.lastIndexOf('/') + 1) || 'External Script';
-                  } catch (e) {
-                      sourceName = source.substring(source.lastIndexOf('/') + 1) || 'Script';
-                  }
-              }
-              
-              errorDetails += `\nSource: ${sourceName}`;
-              
-              if (errorObject && errorObject.stack) {
-                  const stackString = String(errorObject.stack);
-                  errorDetails += `\n\nStack:\n${stackString.split('\n').slice(0, 4).join('\n')}`;
-              }
-              
-              lastErrorDetails = errorDetails;
-              const statusIndicator = document.querySelector('.status-indicator');
-              statusIndicator.style.backgroundColor = 'var(--error)';
-              statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> JS error';
-              
-              // If AI error fixing is enabled, suggest a fix
-              if (document.getElementById('aiErrorFixingToggle').checked) {
-                  setTimeout(() => {
-                      suggestAiErrorFix({
-                          type: 'js',
-                          message: lastErrorMessage,
-                          details: errorDetails,
-                          location: `Line ${lineno}`
-                      });
-                  }, 500);
-              }
-              
               return true;
           };
+
+// Add this object at a suitable place, e.g., near the top of script.js
+// It should store the initial content of your editors to compare against.
+const initialEditorContent = {
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <h1>Hello World</h1>
+  <p>Welcome to the VS Code-inspired editor!</p>
+  <button id="demo-button">Click Me</button>
+</body>
+</html>`,
+    css: `body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+h1 {
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #2980b9;
+}`,
+    js: `// JavaScript code
+document.addEventListener('DOMContentLoaded', function() {
+  const button = document.getElementById('demo-button');
+  
+  if (button) {
+    button.addEventListener('click', function() {
+      alert('Button clicked!');
+    });
+  }
+  
+  console.log('Script loaded successfully!');
+});`
+};
+
+// Function to get and process content from editors
+function getEditorContentDetails() {
+    // Ensure htmlCodeMirror, cssCodeMirror, jsCodeMirror are accessible
+    if (!editors.html || !editors.css || !editors.js) {
+        console.error("CodeMirror instances not found.");
+        return {
+            html: { text: "", lines: 0, chars: 0 },
+            css: { text: "", lines: 0, chars: 0 },
+            js: { text: "", lines: 0, chars: 0 }
+        };
+    }
+
+    let htmlFullContent = editors.html.getValue();
+    let cssFullContent = editors.css.getValue();
+    let jsFullContent = editors.js.getValue();
+
+    // const isHtmlDefaultOrEmpty = htmlFullContent.trim() === '' || htmlFullContent.trim() === initialEditorContent.html.trim();
+    // const isCssDefaultOrEmpty = cssFullContent.trim() === '' || cssFullContent.trim() === initialEditorContent.css.trim();
+    // const isJsDefaultOrEmpty = jsFullContent.trim() === '' || jsFullContent.trim() === initialEditorContent.js.trim();
+
+    let activeHtmlText = htmlFullContent;
+    let activeCssText = cssFullContent;
+    let activeJsText = jsFullContent;
+
+    let htmlLineCount = htmlFullContent.trim() === '' ? 0 : editors.html.lineCount();
+    let cssLineCount = cssFullContent.trim() === '' ? 0 : editors.css.lineCount();
+    let jsLineCount = jsFullContent.trim() === '' ? 0 : editors.js.lineCount();
+
+    // Single Page Application (SPA) like scenario: CSS/JS might be in HTML editor
+    if (activeCssText === "" && activeJsText === "" && activeHtmlText !== "") {
+        let extractedCss = "";
+        const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+        let matchStyle;
+        let tempHtmlForStyle = activeHtmlText;
+        while ((matchStyle = styleRegex.exec(tempHtmlForStyle)) !== null) {
+            extractedCss += matchStyle[1];
+        }
+
+        let extractedJs = "";
+        const scriptRegex = /<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi;
+        let matchScript;
+        let tempHtmlForScript = activeHtmlText;
+        while ((matchScript = scriptRegex.exec(tempHtmlForScript)) !== null) {
+            extractedJs += matchScript[1];
+        }
+
+        if (extractedCss.trim() !== "" || extractedJs.trim() !== "") {
+            activeCssText = extractedCss.trim();
+            activeJsText = extractedJs.trim();
+            
+            let pureHtml = activeHtmlText;
+            pureHtml = pureHtml.replace(styleRegex, ''); 
+            pureHtml = pureHtml.replace(scriptRegex, '');
+            activeHtmlText = pureHtml.trim();
+
+            cssLineCount = (activeCssText.match(/\n/g) || []).length + (activeCssText.length > 0 ? 1 : 0);
+            jsLineCount = (activeJsText.match(/\n/g) || []).length + (activeJsText.length > 0 ? 1 : 0);
+            htmlLineCount = (activeHtmlText.match(/\n/g) || []).length + (activeHtmlText.length > 0 ? 1 : 0);
+        }
+    }
+
+    return {
+        html: { text: activeHtmlText, lines: activeHtmlText ? htmlLineCount : 0, chars: activeHtmlText.length },
+        css: { text: activeCssText, lines: activeCssText ? cssLineCount : 0, chars: activeCssText.length },
+        js: { text: activeJsText, lines: activeJsText ? jsLineCount : 0, chars: activeJsText.length }
+    };
+}
+
+function showMappingModal() {
+    const content = getEditorContentDetails();
+
+    const totalChars = content.html.chars + content.css.chars + content.js.chars;
+
+    const htmlPercent = totalChars > 0 ? (content.html.chars / totalChars) * 100 : 0;
+    const cssPercent = totalChars > 0 ? (content.css.chars / totalChars) * 100 : 0;
+    const jsPercent = totalChars > 0 ? (content.js.chars / totalChars) * 100 : 0;
+
+    document.getElementById('htmlPercentage').textContent = htmlPercent.toFixed(1);
+    document.getElementById('htmlBar').style.width = htmlPercent + '%';
+    document.getElementById('cssPercentage').textContent = cssPercent.toFixed(1);
+    document.getElementById('cssBar').style.width = cssPercent + '%';
+    document.getElementById('jsPercentage').textContent = jsPercent.toFixed(1);
+    document.getElementById('jsBar').style.width = jsPercent + '%';
+
+    // HTML Stats
+    document.getElementById('htmlCharCount').textContent = content.html.chars;
+    document.getElementById('htmlLineCount').textContent = content.html.lines;
+    const htmlTagCount = (content.html.text.match(/<\w+(?:\s+[^>]*)?>/g) || []).length; // Counts opening tags
+    document.getElementById('htmlTagCount').textContent = htmlTagCount;
+
+    // CSS Stats
+    document.getElementById('cssCharCount').textContent = content.css.chars;
+    document.getElementById('cssLineCount').textContent = content.css.lines;
+    const cssRuleCount = (content.css.text.match(/\{[\s\S]*?\}/g) || []).length; // Approx. counts rule blocks
+    document.getElementById('cssRuleCount').textContent = cssRuleCount;
+
+    // JavaScript Stats
+    document.getElementById('jsCharCount').textContent = content.js.chars;
+    document.getElementById('jsLineCount').textContent = content.js.lines;
+    // A more inclusive regex for various function definitions
+    const jsFuncRegex = /(function\s+\w*\s*\(|const\s+\w+\s*=\s*function\s*\(|let\s+\w+\s*=\s*function\s*\(|var\s+\w+\s*=\s*function\s*\(|\w+\s*:\s*function\s*\(|=>\s*\{|=\s*\([^)]*\)\s*=>|=\s*\w+\s*=>)/g;
+    const jsFuncCount = (content.js.text.match(jsFuncRegex) || []).length;
+    document.getElementById('jsFuncCount').textContent = jsFuncCount;
+    
+    showModal('mappingModal'); // Changed openModal to showModal
+}
+
+// Make sure you have a generic openModal and closeModal function like this:
+// function openModal(modalId) {
+//     const modal = document.getElementById(modalId);
+//     if (modal) {
+//         modal.style.display = 'flex'; // Or 'block' depending on your modal CSS
+//     }
+// }
+
+// function closeModal(modalId) {
+//     const modal = document.getElementById(modalId);
+//     if (modal) {
+//         modal.style.display = 'none';
+//     }
+// }
+
+// Ensure CodeMirror instances are globally accessible, e.g., window.htmlCodeMirror
+// This is often done in the editor initialization part of your script.
+// Example:
+// window.htmlCodeMirror = CodeMirror.fromTextArea(...);
+// window.cssCodeMirror = CodeMirror.fromTextArea(...);
+// window.jsCodeMirror = CodeMirror.fromTextArea(...);
+
+
+function minimalJsSyntaxCheck(jsCode) {
+    let open = 0, close = 0, lineNum = 1;
+    for (let i = 0; i < jsCode.length; i++) {
+        if (jsCode[i] === '{') open++;
+        if (jsCode[i] === '}') close++;
+        if (jsCode[i] === '\n') lineNum++;
+    }
+    if (open !== close) return `Unbalanced curly braces detected. Row: ${lineNum}`;
+    return null;
+}
+function minimalCssSyntaxCheck(cssCode) {
+    const lines = cssCode.split('\n');
+    let open = 0, close = 0;
+    for (let i = 0; i < lines.length; i++) {
+        for (let char of lines[i]) {
+            if (char === '{') open++;
+            if (char === '}') close++;
+        }
+        if (open < close) {
+            return `Unbalanced curly braces detected. Line: ${i + 1}`;
+        }
+    }
+    if (open !== close) {
+        return `Unbalanced curly braces detected. Line: ${lines.length}`;
+    }
+    return null;
+}
 
           function updatePreview() {
               jsErrorInPreviewOccurred = false;
@@ -1011,7 +1730,7 @@ function extractTagContent(html, tag) {
           }
 
           // Safe preview update with error handling
-          function safeUpdatePreview() {
+function safeUpdatePreview() {
     const statusIndicator = document.querySelector('.status-indicator');
     lastErrorType = null;
     lastErrorMessage = '';
@@ -1019,56 +1738,31 @@ function extractTagContent(html, tag) {
 
     // HTML Error Check (with HTMLHint)
     const htmlCode = editors.html.getValue();
-    if (htmlCode.trim() === '') {
-        // HTML editor is empty, skip error checking
-        return;
-    }
+    if (htmlCode.trim() === '') return;
     if (typeof HTMLHint !== 'undefined') {
         const htmlResults = HTMLHint.verify(htmlCode);
         if (htmlResults && htmlResults.length > 0) {
-            const firstError = htmlResults[0];
-            lastErrorType = "html";
-            lastErrorMessage = firstError.message || "HTML Error";
-            lastErrorDetails = `Row: ${firstError.line}, Col: ${firstError.col}\n${firstError.evidence || ''}`;
-            statusIndicator.style.backgroundColor = 'var(--error)';
-            statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> HTML error';
-            showErrorModal(lastErrorMessage, lastErrorDetails);
-            return;
+            // ...existing code...
         }
     }
 
-    // CSS Error Check (only if CSS editor has code)
-    if (typeof CSSLint !== 'undefined' && editors.css) {
-        const cssCode = editors.css.getValue();
-        if (cssCode.trim() !== '') {
-            const cssResults = CSSLint.verify(cssCode);
-            if (cssResults.messages && cssResults.messages.length > 0) {
-                let cssErrorMessages = cssResults.messages.filter(msg => msg.type === 'error');
-                if (cssErrorMessages.length > 0) {
-                    const firstError = cssErrorMessages[0];
-                    lastErrorType = "css";
-                    lastErrorMessage = firstError.message || "CSS Error";
-                    lastErrorDetails = `Line: ${firstError.line}, Col: ${firstError.col}\n${firstError.evidence || ''}`;
-                    statusIndicator.style.backgroundColor = 'var(--error)';
-                    statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> CSS error';
-                    showErrorModal(lastErrorMessage, lastErrorDetails);
-                    return;
-                }
-            }
-        }
-    }
-
-    // JS Error Check (only if JS editor has code)
-    if (editors.js && editors.js.getValue().trim() === '') {
-        jsErrorInPreviewOccurred = false;
+    // ---- Minimal JS syntax check ----
+    const jsCode = editors.js.getValue();
+    const jsSyntaxError = minimalJsSyntaxCheck(jsCode);
+    if (jsSyntaxError) {
+        lastErrorType = "js";
+        lastErrorMessage = jsSyntaxError;
+        lastErrorDetails = "";
+        statusIndicator.style.backgroundColor = 'var(--error)';
+        statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> JS error';
+        showErrorModal(lastErrorMessage, lastErrorDetails);
+        return;
     }
 
     try {
         updatePreview();
-        if (!jsErrorInPreviewOccurred) {
-            statusIndicator.style.backgroundColor = 'var(--success)';
-            statusIndicator.innerHTML = '<i class="fa-solid fa-play"></i> Live';
-        }
+        statusIndicator.style.backgroundColor = 'var(--success)';
+        statusIndicator.innerHTML = '<i class="fa-solid fa-play"></i> Live';
     } catch (error) {
         lastErrorType = "html";
         lastErrorMessage = error.message || "HTML Error";
@@ -1077,8 +1771,39 @@ function extractTagContent(html, tag) {
         statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> HTML error';
         showErrorModal(lastErrorMessage, lastErrorDetails);
     }
+    // ---- Minimal CSS syntax check ----
+const cssCode = editors.css.getValue();
+const cssSyntaxError = minimalCssSyntaxCheck(cssCode);
+if (cssSyntaxError) {
+    lastErrorType = "css";
+    lastErrorMessage = cssSyntaxError;
+    lastErrorDetails = "";
+    statusIndicator.style.backgroundColor = 'var(--error)';
+    statusIndicator.innerHTML = '<i class="fa-solid fa-bug"></i> CSS error';
+    showErrorModal(lastErrorMessage, lastErrorDetails);
+    return;
+}
 
     saveCurrentContent();
+}
+
+function mapLocalResourcesToBlobUrls(htmlContent, files) {
+    // Map: filename -> Blob URL
+    const blobMap = {};
+    for (const file of files) {
+        if (/\.(png|jpe?g|gif|bmp|svg|webp|pdf|mp3|mp4|wav|ogg|webm)$/i.test(file.name)) {
+            blobMap[file.name] = URL.createObjectURL(file);
+        }
+    }
+    // Replace <img src="..."> and <a href="..."> with Blob URLs if local
+    htmlContent = htmlContent.replace(/<(img|a)[^>]+(src|href)=["']([^"']+)["'][^>]*>/gi, (match, tag, attr, val) => {
+        const fileName = val.split('/').pop();
+        if (blobMap[fileName]) {
+            return match.replace(val, blobMap[fileName]);
+        }
+        return match;
+    });
+    return htmlContent;
 }
           
 
@@ -1117,50 +1842,6 @@ function extractTagContent(html, tag) {
                   editors.html.setValue(content.html || '');
                   editors.css.setValue(content.css || '');
                   editors.js.setValue(content.js || '');
-              }
-          }
-
-          // File operations
-          function newFile() {
-              const confirmed = confirm('Create a new project? Unsaved changes in the current view will be lost.');
-              if (confirmed) {
-                  editors.html.setValue(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <h1>Hello World!</h1>
-    <p>Start coding here...</p>
-</body>
-</html>`);
-                  editors.css.setValue(`/* CSS Styles */
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-}
-
-h1 {
-    color: #333;
-    text-align: center;
-}`);
-                  editors.js.setValue(`// JavaScript Code
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Hello World!');
-    // Your code here
-});`);
-                  
-                  const fileExplorer = document.getElementById('fileExplorer');
-                  fileExplorer.innerHTML = '';
-                  createFileExplorerItem('index.html', 'html', true);
-                  createFileExplorerItem('styles.css', 'css', true);
-                  createFileExplorerItem('script.js', 'js', true);
-
-                  selectTab('html');
-                  safeUpdatePreview();
               }
           }
 
@@ -1206,28 +1887,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
               if (htmlFile) { 
                   editors.html.setValue(await readFileContent(htmlFile)); 
-                  createFileExplorerItem(htmlFile.name, 'html', true); 
+                  createFileExplorer(htmlFile.name, 'html', true); 
               } else { 
-                  createFileExplorerItem('index.html', 'html', true); 
+                  createFileExplorer('index.html', 'html', true); 
               }
               
               if (cssFile) { 
                   editors.css.setValue(await readFileContent(cssFile)); 
-                  createFileExplorerItem(cssFile.name, 'css', true); 
+                  createFileExplorer(cssFile.name, 'css', true); 
               } else { 
-                  createFileExplorerItem('styles.css', 'css', true); 
+                  createFileExplorer('styles.css', 'css', true); 
               }
               
               if (jsFile) { 
                   editors.js.setValue(await readFileContent(jsFile)); 
-                  createFileExplorerItem(jsFile.name, 'js', true); 
+                  createFileExplorer(jsFile.name, 'js', true); 
               } else { 
-                  createFileExplorerItem('script.js', 'js', true); 
+                  createFileExplorer('script.js', 'js', true); 
               }
 
               Array.from(files)
                   .filter(f => f !== htmlFile && f !== cssFile && f !== jsFile)
-                  .forEach(f => createFileExplorerItem(f.webkitRelativePath || f.name, getFileType(f.name), false));
+                  .forEach(f => createFileExplorer(f.webkitRelativePath || f.name, getFileType(f.name), false));
               
               selectTab('html');
               safeUpdatePreview();
@@ -1313,22 +1994,30 @@ ${jsContent}
               URL.revokeObjectURL(url);
           }
 
-          function openPreviewInNewTab() {
-              const htmlInput = editors.html.getValue();
-              const cssInput = editors.css.getValue();
-              const jsInput = editors.js.getValue();
+         function openPreviewInNewTab() {
+    const htmlInput = editors.html.getValue();
+    const cssInput = editors.css.getValue();
+    const jsInput = editors.js.getValue();
 
-              const finalHtml = constructPreviewHtml(htmlInput, cssInput, jsInput);
-              
-              const newWindow = window.open();
-              if (newWindow) {
-                  newWindow.document.open();
-                  newWindow.document.write(finalHtml);
-                  newWindow.document.close();
-              } else {
-                  alert('Failed to open new tab. Please check your browser pop-up settings.');
-              }
-          }
+    // ==== Get uploaded files from input[type="file"] ====
+    const folderInput = document.getElementById('folderInput');
+    const files = folderInput && folderInput.files ? Array.from(folderInput.files) : [];
+
+    // ==== Map local images/files to Blob URLs ====
+    const processedHtml = mapLocalResourcesToBlobUrls(htmlInput, files);
+
+    // ==== මෙහිදී processedHtml යොදන්න ====
+    const finalHtml = constructPreviewHtml(processedHtml, cssInput, jsInput);
+
+    const newWindow = window.open();
+    if (newWindow) {
+        newWindow.document.open();
+        newWindow.document.write(finalHtml);
+        newWindow.document.close();
+    } else {
+        alert('Failed to open new tab. Please check your browser pop-up settings.');
+    }
+}
 
           // Theme management
           function changeTheme(theme) {
@@ -1386,7 +2075,7 @@ ${jsContent}
           }
           
           // File explorer
-          function createFileExplorerItem(fileName, type, isEditableMainTab) {
+          function createFileExplorer(fileName, type, isEditableMainTab) {
               const fileExplorer = document.getElementById('fileExplorer');
               const fileItem = document.createElement('div');
               fileItem.className = 'file-item';
@@ -2067,6 +2756,7 @@ ${getCurrentEditor().getValue().substring(0, 500)}${getCurrentEditor().getValue(
           initializeEditors();
           setupKeyboardShortcuts();
           initializeCssColorPicker();
+            initializeImageToApp();
           updateStatusBar();
           safeUpdatePreview();
           setInterval(saveCurrentContent, 30000);
